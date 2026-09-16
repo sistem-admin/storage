@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Admin</title>
+    <link rel="icon" type="image/png" href="admin.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Reset & Base Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #f8f9fa; --bg-secondary: #ffffff;
+            --text-primary: #212529; --text-secondary: #6c757d;
+            --accent-color: #0d6efd; --accent-hover: #0b5ed7;
+            --error-color: #dc3545; --success-color: #198754;
+            --border-color: #dee2e6; --radius: 8px;
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+            --transition: all 0.3s ease;
+            --font-ui: "Inter", sans-serif;
+        }
+        body {
+            font-family: var(--font-ui);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; display: flex;
+            justify-content: center; align-items: center; padding: 20px;
+        }
+        .login-container { width: 100%; max-width: 450px; margin: 0 auto; }
+        .login-card {
+            background: var(--bg-secondary); border-radius: var(--radius);
+            box-shadow: var(--shadow-lg); padding: 40px; animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .logo-text { font-size: 28px; font-weight: 700; color: var(--accent-color); }
+        .login-subtitle { color: var(--text-secondary); font-size: 15px; margin-top: 10px; }
+        .login-form { display: flex; flex-direction: column; gap: 20px; }
+        .form-group { position: relative; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px; }
+        .input-with-icon { position: relative; }
+        .form-input {
+            width: 100%; padding: 14px 14px 14px 45px;
+            border: 2px solid var(--border-color); border-radius: var(--radius);
+            font-size: 15px; background: var(--bg-primary); color: var(--text-primary);
+        }
+        .form-input:focus { outline: none; border-color: var(--accent-color); }
+        .input-icon {
+            position: absolute; left: 15px; top: 50%;
+            transform: translateY(-50%); color: var(--text-secondary); font-size: 18px;
+        }
+        .toggle-password {
+            position: absolute; right: 15px; top: 50%;
+            transform: translateY(-50%); background: none; border: none;
+            color: var(--text-secondary); cursor: pointer; font-size: 18px;
+        }
+        .error-message {
+            color: var(--error-color); font-size: 13px; margin-top: 6px; display: none;
+        }
+        .error-message.show { display: block; }
+        .btn {
+            padding: 14px 24px; border: none; border-radius: var(--radius);
+            font-size: 15px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-primary { background: var(--accent-color); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+        .loading-spinner {
+            display: none; width: 20px; height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
+            border-top-color: white; animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast {
+            position: fixed; bottom: 30px; right: 30px;
+            background: var(--text-primary); color: white; padding: 14px 20px;
+            border-radius: var(--radius); display: none; z-index: 1000;
+        }
+        .toast.show { display: block; }
+        .toast.error { background: var(--error-color); }
+        .toast.success { background: var(--success-color); }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <span class="logo-text">Sistem Admin</span>
+                <p class="login-subtitle">Masukkan kata sandi untuk mengakses sistem File Explorer</p>
+            </div>
+
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="password">
+                        <i class="fas fa-key"></i> Password
+                    </label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="password" class="form-input" placeholder="Masukkan password" required autofocus>
+                        <button type="button" class="toggle-password" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="error-message" id="passwordError"></div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="loginBtn">
+                    <span class="btn-text">MASUK</span>
+                    <div class="loading-spinner"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA0Dq3IwmRygUZGuDj2TmTDYNucHArP7Ks",
+  authDomain: "salman-36770.firebaseapp.com", // Sesuaikan jika ada perubahan
+  databaseURL: "https://salman-36770-default-rtdb.asia-southeast1.firebasedatabase.app", // <-- SALIN DARI GAMBAR ANDA
+  projectId: "salman-36770", // Sesuaikan dengan project id baru jika berubah
+  storageBucket: "salman-36770.firebasestorage.app",
+  messagingSenderId: "1016224676874",
+  appId: "1:1016224676874:web:b8e47ad59d40cafe5773f3",
+  measurementId: "G-EVENZ3EPGX"
+};
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const PASSWORD_PATH = "app_password/password";
+
+        const loginForm = document.getElementById('loginForm');
+        const passwordInput = document.getElementById('password');
+        const togglePasswordBtn = document.getElementById('togglePassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const passwordError = document.getElementById('passwordError');
+        const toast = document.getElementById('toast');
+
+        togglePasswordBtn.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+        });
+
+        function showToast(message, type = 'info', duration = 3000) {
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => toast.classList.remove('show'), duration);
+        }
+
+        function validatePassword(password) {
+            passwordError.classList.remove('show');
+            if (!password || password.length < 4) {
+                passwordError.textContent = 'Password minimal 4 karakter';
+                passwordError.classList.add('show');
+                return false;
+            }
+            return true;
+        }
+
+        async function login(password) {
+            try {
+                loginBtn.disabled = true;
+                loginBtn.querySelector('.btn-text').textContent = 'Memverifikasi...';
+                loginBtn.querySelector('.loading-spinner').style.display = 'inline-block';
+
+                const snapshot = await database.ref(PASSWORD_PATH).once('value');
+                const storedPassword = snapshot.val();
+
+                if (storedPassword === null) {
+                    passwordError.textContent = 'Password belum diatur di database';
+                    passwordError.classList.add('show');
+                } else if (password !== String(storedPassword)) {
+                    passwordError.textContent = 'Password salah';
+                    passwordError.classList.add('show');
+                    passwordInput.style.animation = 'shake 0.5s';
+                    setTimeout(() => passwordInput.style.animation = '', 500);
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                } else {
+                    sessionStorage.setItem('fileExplorerLoggedIn', 'true');
+                    sessionStorage.setItem('loginTime', Date.now());
+                    
+                    showToast('Login berhasil! Mengarahkan...', 'success');
+                    // Langsung hubungkan ke index.html (File Explorer)
+                    setTimeout(() => window.location.href = 'index.html', 1000);
+                    return; 
+                }
+            } catch (error) {
+                showToast('Terjadi kesalahan sistem', 'error');
+            }
+            
+            loginBtn.disabled = false;
+            loginBtn.querySelector('.btn-text').textContent = 'MASUK';
+            loginBtn.querySelector('.loading-spinner').style.display = 'none';
+        }
+
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const password = passwordInput.value.trim();
+            if (validatePassword(password)) await login(password);
+        });
+
+        window.addEventListener('load', function() {
+            passwordInput.focus();
+            const isLoggedIn = sessionStorage.getItem('fileExplorerLoggedIn');
+            const loginTime = parseInt(sessionStorage.getItem('loginTime') || '0');
+            if (isLoggedIn === 'true' && (Date.now() - loginTime) < (8 * 60 * 60 * 1000)) {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>
